@@ -279,24 +279,27 @@ class FlutterCallkitIncomingPlugin : FlutterPlugin, MethodCallHandler, ActivityA
                         }
                     }
                     callkitNotificationManager?.requestNotificationPermission(activity, map)
+                    result.success("OK")
                 }
 
                 "requestFullIntentPermission" -> {
                     callkitNotificationManager?.requestFullIntentPermission(activity)
+                    result.success("OK")
                 }
                 // EDIT - clear the incoming notification/ring (after accept/decline/timeout)
                 "hideCallkitIncoming" -> {
                     val data = Data(call.arguments() ?: HashMap())
                     context?.stopService(Intent(context, CallkitSoundPlayerService::class.java))
                     callkitNotificationManager?.clearIncomingNotification(data.toBundle(), false)
+                    result.success("OK")
                 }
 
                 "endNativeSubsystemOnly" -> {
-
+                    result.success("OK")
                 }
 
                 "setAudioRoute" -> {
-
+                    result.success("OK")
                 }
             }
         } catch (error: Exception) {
