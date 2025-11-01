@@ -233,6 +233,19 @@ public class SwiftFlutterCallkitIncomingPlugin: NSObject, FlutterPlugin, CXProvi
         case "setAudioRoute":
             result(true)
             break
+        case "updateDisplay":
+            guard let args = call.arguments as? [String: Any],
+                  let uuid = args["id"] as? String,
+                  let displayName = args["nameCaller"] as? String,
+                  let handle = args["handle"] as? String else {
+                result(false)
+                return
+            }
+            let hasVideo = args["hasVideo"] as? Bool ?? false
+            let options = args["options"] as? [String: Any]
+            self.updateDisplay(uuid: uuid, displayName: displayName, handle: handle, hasVideo: hasVideo, options: options)
+            result(true)
+            break
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -761,6 +774,43 @@ public class SwiftFlutterCallkitIncomingPlugin: NSObject, FlutterPlugin, CXProvi
         self.sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_CALLBACK, data)
     }
     
+    /// Updates the display of an ongoing call
+    /// - Parameters:
+    ///   - uuid: The UUID of the call to update
+    ///   - displayName: The new caller name to display
+    ///   - handle: The new handle (phone number) to display
+    ///   - hasVideo: Whether the call has video capability
+    ///   - options: Additional options for the call update
+    @objc public func updateDisplay(uuid: String, displayName: String, handle: String, hasVideo: Bool = false, options: [String: Any]? = nil) {
+        guard let callUUID = UUID(uuidString: uuid), 
+              let call = self.callManager.callWithUUID(uuid: callUUID) else {
+            print("Call not found for UUID: \(uuid) or UUID is invalid")
+            return
+        }
+        
+        let callUpdate = CXCallUpdate()
+        callUpdate.localizedCallerName = displayName
+        callUpdate.remoteHandle = CXHandle(type: self.getHandleType("generic"), value: handle)
+        callUpdate.hasVideo = hasVideo
+        
+        // Apply additional options if provided
+        if let options = options {
+            if let supportsHolding = options["supportsHolding"] as? Bool {
+                callUpdate.supportsHolding = supportsHolding
+            }
+            if let supportsDTMF = options["supportsDTMF"] as? Bool {
+                callUpdate.supportsDTMF = supportsDTMF
+            }
+            if let supportsGrouping = options["supportsGrouping"] as? Bool {
+                callUpdate.supportsGrouping = supportsGrouping
+            }
+            if let supportsUngrouping = options["supportsUngrouping"] as? Bool {
+                callUpdate.supportsUngrouping = supportsUngrouping
+            }
+        }
+        
+        self.sharedProvider?.reportCall(with: callUUID, updated: callUpdate)
+    }
     
     private func requestNotificationPermission(_ map: [String: Any]) {
         CallkitNotificationManager.shared.requestNotificationPermission(map)
