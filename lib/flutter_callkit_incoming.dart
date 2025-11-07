@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/services.dart';
 
@@ -150,4 +151,31 @@ class FlutterCallkitIncoming {
     }
     return null;
   }
+
+  /// Update display for an ongoing call.
+  /// On iOS, using Callkit(update the ongoing call UI).
+  /// On Android, Nothing(only callback event listener).
+  ///
+  /// * id: UUID of the call to update
+  /// * nameCaller: The new caller name to display
+  /// * handle: The new handle (phone number) to display
+  /// * hasVideo: Whether the call has video capability
+  /// * options: Additional options for the call update (supportsHolding, supportsDTMF, supportsGrouping, supportsUngrouping)
+  static Future updateIOSCallkitDisplay(
+      {required String id,
+      required String nameCaller,
+      required String handle,
+      bool hasVideo = false,
+      Map<String, dynamic>? options}) async {
+    if (Platform.isIOS) {
+      await _channel.invokeMethod("updateDisplay", {
+        'id': id,
+        'nameCaller': nameCaller,
+        'handle': handle,
+        'hasVideo': hasVideo,
+        'options': options
+      });
+    }
+  }
+
 }
