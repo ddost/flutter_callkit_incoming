@@ -382,15 +382,18 @@ public class SwiftFlutterCallkitIncomingPlugin: NSObject, FlutterPlugin, CXProvi
     }
     
     @objc public func endCall(_ data: Data) {
-        var call: Call? = nil
-        if(self.isFromPushKit){
-            call = Call(uuid: UUID(uuidString: self.data!.uuid)!, data: data)
-            self.isFromPushKit = false
-            self.sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_ENDED, data.toJSON())
-        }else {
-            call = Call(uuid: UUID(uuidString: data.uuid)!, data: data)
+        guard let callUUID = UUID(uuidString: data.uuid),
+              let call = self.callManager.callWithUUID(uuid: callUUID) else {
+            // If call not found in manager, try to create and end it
+            let call = Call(uuid: UUID(uuidString: data.uuid)!, data: data)
+            self.callManager.endCall(call: call)
+            return
         }
-        self.callManager.endCall(call: call!)
+        // Use existing call from manager
+        if(self.isFromPushKit){
+            self.isFromPushKit = false
+        }
+        self.callManager.endCall(call: call)
     }
     
     @objc public func connectedCall(_ data: Data) {
@@ -635,31 +638,54 @@ public class SwiftFlutterCallkitIncomingPlugin: NSObject, FlutterPlugin, CXProvi
     
     public func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
         guard let call = self.callManager.callWithUUID(uuid: action.callUUID) else {
-            if(self.answerCall == nil && self.outgoingCall == nil){
-                sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_TIMEOUT, self.data?.toJSON())
-            } else {
-                sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_ENDED, self.data?.toJSON())
+            // Call not found in manager - might be already ended
+            // Check if there are other active calls
+            let activeCalls = self.callManager.calls
+            if activeCalls.isEmpty {
+                if(self.answerCall == nil && self.outgoingCall == nil){
+                    sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_TIMEOUT, self.data?.toJSON())
+                } else {
+                    sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_ENDED, self.data?.toJSON())
+                }
             }
-            action.fail()
+            action.fulfill()
             return
         }
         call.endCall()
         self.callManager.removeCall(call)
-        if (self.answerCall == nil && self.outgoingCall == nil) {
-            sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_DECLINE, self.data?.toJSON())
-            if let appDelegate = UIApplication.shared.delegate as? CallkitIncomingAppDelegate {
-                appDelegate.onDecline(call, action)
-            } else {
-                action.fulfill()
-            }
-        }else {
+        
+        // Check if this call is the answerCall or outgoingCall and clear only if it matches
+        let isAnswerCall = self.answerCall?.uuid == call.uuid
+        let isOutgoingCall = self.outgoingCall?.uuid == call.uuid
+        
+        if isAnswerCall {
             self.answerCall = nil
+        }
+        if isOutgoingCall {
+            self.outgoingCall = nil
+        }
+        
+        // Determine event type based on call state, not global state
+        if call.hasConnected {
+            // Call was connected, so it's an ended call
             sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_ENDED, call.data.toJSON())
             if let appDelegate = UIApplication.shared.delegate as? CallkitIncomingAppDelegate {
                 appDelegate.onEnd(call, action)
             } else {
                 action.fulfill()
             }
+        } else if !call.isOutGoing {
+            // Incoming call that wasn't connected - it's a decline
+            sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_DECLINE, call.data.toJSON())
+            if let appDelegate = UIApplication.shared.delegate as? CallkitIncomingAppDelegate {
+                appDelegate.onDecline(call, action)
+            } else {
+                action.fulfill()
+            }
+        } else {
+            // Outgoing call that wasn't connected
+            sendEvent(SwiftFlutterCallkitIncomingPlugin.ACTION_CALL_ENDED, call.data.toJSON())
+            action.fulfill()
         }
     }
     
