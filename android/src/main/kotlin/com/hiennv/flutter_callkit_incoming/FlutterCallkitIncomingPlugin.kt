@@ -411,8 +411,6 @@ class FlutterCallkitIncomingPlugin : FlutterPlugin, MethodCallHandler, ActivityA
     }
 
     override fun onDetachedFromActivity() {
-        instance.context = null
-        instance.activity = null
     }
 
     class EventCallbackHandler : EventChannel.StreamHandler {
