@@ -86,17 +86,26 @@ class CallkitSoundPlayerManager(private val context: Context) {
             }
 
             else -> {
+                val vibratePattern = longArrayOf(0, 1000, 1000)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator?.vibrate(
-                        VibrationEffect.createWaveform(
-                            longArrayOf(0L, 1000L, 1000L),
-                            0
+                    val vibrationEffect = VibrationEffect.createWaveform(vibratePattern, 0)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        vibrator?.vibrate(
+                            vibrationEffect,
+                            VibrationAttributes.createForUsage(VibrationAttributes.USAGE_RINGTONE)
                         )
-                    )
+                    } else {
+                        vibrator?.vibrate(
+                            vibrationEffect,
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE).build()
+                        )
+                    }
                 } else {
                     vibrator?.vibrate(longArrayOf(0L, 1000L, 1000L), 0)
                 }
             }
+
         }
     }
 
