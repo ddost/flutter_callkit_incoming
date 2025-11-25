@@ -813,12 +813,12 @@ public class SwiftFlutterCallkitIncomingPlugin: NSObject, FlutterPlugin, CXProvi
             print("Call not found for UUID: \(uuid) or UUID is invalid")
             return
         }
-        
+
         let callUpdate = CXCallUpdate()
         callUpdate.localizedCallerName = displayName
-        callUpdate.remoteHandle = CXHandle(type: self.getHandleType("generic"), value: handle)
+        callUpdate.remoteHandle = CXHandle(type: self.getHandleType("number"), value: handle)
         callUpdate.hasVideo = hasVideo
-        
+
         // Apply additional options if provided
         if let options = options {
             if let supportsHolding = options["supportsHolding"] as? Bool {
